@@ -1,19 +1,79 @@
+import { db } from '../db';
+import { trainersTable } from '../db/schema';
 import { type UpdateTrainerInput, type Trainer } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function updateTrainer(input: UpdateTrainerInput): Promise<Trainer> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is updating an existing gym trainer's information in the database.
-    // It should validate the input, check if trainer exists, and return the updated trainer.
-    return Promise.resolve({
-        id: input.id,
-        first_name: input.first_name || 'Updated',
-        last_name: input.last_name || 'Trainer',
-        email: input.email || 'updated@example.com',
-        phone: input.phone || null,
-        specialization: input.specialization || null,
-        hourly_rate: input.hourly_rate || null,
-        hire_date: new Date(),
-        is_active: input.is_active !== undefined ? input.is_active : true,
-        created_at: new Date(),
-    } as Trainer);
-}
+export const updateTrainer = async (input: UpdateTrainerInput): Promise<Trainer> => {
+  try {
+    // Build update object only with provided fields
+    const updateData: Record<string, any> = {};
+    
+    if (input.first_name !== undefined) {
+      updateData['first_name'] = input.first_name;
+    }
+    
+    if (input.last_name !== undefined) {
+      updateData['last_name'] = input.last_name;
+    }
+    
+    if (input.email !== undefined) {
+      updateData['email'] = input.email;
+    }
+    
+    if (input.phone !== undefined) {
+      updateData['phone'] = input.phone;
+    }
+    
+    if (input.specialization !== undefined) {
+      updateData['specialization'] = input.specialization;
+    }
+    
+    if (input.hourly_rate !== undefined) {
+      updateData['hourly_rate'] = input.hourly_rate ? input.hourly_rate.toString() : null;
+    }
+    
+    if (input.is_active !== undefined) {
+      updateData['is_active'] = input.is_active;
+    }
+
+    // Check if trainer exists before attempting update
+    const existingTrainer = await db.select()
+      .from(trainersTable)
+      .where(eq(trainersTable.id, input.id))
+      .execute();
+
+    if (existingTrainer.length === 0) {
+      throw new Error(`Trainer with ID ${input.id} not found`);
+    }
+
+    // If no fields to update, return existing trainer
+    if (Object.keys(updateData).length === 0) {
+      const trainer = existingTrainer[0];
+      return {
+        ...trainer,
+        hire_date: new Date(trainer.hire_date),
+        created_at: new Date(trainer.created_at),
+        hourly_rate: trainer.hourly_rate ? parseFloat(trainer.hourly_rate) : null
+      };
+    }
+
+    // Update trainer record
+    const result = await db.update(trainersTable)
+      .set(updateData)
+      .where(eq(trainersTable.id, input.id))
+      .returning()
+      .execute();
+
+    // Convert fields back to proper types before returning
+    const trainer = result[0];
+    return {
+      ...trainer,
+      hire_date: new Date(trainer.hire_date),
+      created_at: new Date(trainer.created_at),
+      hourly_rate: trainer.hourly_rate ? parseFloat(trainer.hourly_rate) : null
+    };
+  } catch (error) {
+    console.error('Trainer update failed:', error);
+    throw error;
+  }
+};

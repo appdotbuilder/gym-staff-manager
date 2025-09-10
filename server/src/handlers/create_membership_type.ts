@@ -1,16 +1,28 @@
+import { db } from '../db';
+import { membershipTypesTable } from '../db/schema';
 import { type CreateMembershipTypeInput, type MembershipType } from '../schema';
 
-export async function createMembershipType(input: CreateMembershipTypeInput): Promise<MembershipType> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new membership type and persisting it in the database.
-    // It should validate the input and return the created membership type.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createMembershipType = async (input: CreateMembershipTypeInput): Promise<MembershipType> => {
+  try {
+    // Insert membership type record
+    const result = await db.insert(membershipTypesTable)
+      .values({
         name: input.name,
-        description: input.description || null,
+        description: input.description,
         duration_months: input.duration_months,
-        price: input.price,
-        is_active: true,
-        created_at: new Date(),
-    } as MembershipType);
-}
+        price: input.price.toString(), // Convert number to string for numeric column
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric fields back to numbers before returning
+    const membershipType = result[0];
+    return {
+      ...membershipType,
+      price: parseFloat(membershipType.price) // Convert string back to number
+    };
+  } catch (error) {
+    console.error('Membership type creation failed:', error);
+    throw error;
+  }
+};

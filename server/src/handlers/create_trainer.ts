@@ -1,19 +1,32 @@
+import { db } from '../db';
+import { trainersTable } from '../db/schema';
 import { type CreateTrainerInput, type Trainer } from '../schema';
 
-export async function createTrainer(input: CreateTrainerInput): Promise<Trainer> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is creating a new gym trainer and persisting it in the database.
-    // It should validate the input, ensure email uniqueness, and return the created trainer.
-    return Promise.resolve({
-        id: 0, // Placeholder ID
+export const createTrainer = async (input: CreateTrainerInput): Promise<Trainer> => {
+  try {
+    // Insert trainer record
+    const result = await db.insert(trainersTable)
+      .values({
         first_name: input.first_name,
         last_name: input.last_name,
         email: input.email,
-        phone: input.phone || null,
-        specialization: input.specialization || null,
-        hourly_rate: input.hourly_rate || null,
-        hire_date: new Date(),
-        is_active: true,
-        created_at: new Date(),
-    } as Trainer);
-}
+        phone: input.phone,
+        specialization: input.specialization,
+        hourly_rate: input.hourly_rate?.toString() // Convert number to string for numeric column
+      })
+      .returning()
+      .execute();
+
+    // Convert numeric and date fields back to proper types before returning
+    const trainer = result[0];
+    return {
+      ...trainer,
+      hourly_rate: trainer.hourly_rate ? parseFloat(trainer.hourly_rate) : null, // Convert string back to number
+      hire_date: new Date(trainer.hire_date), // Convert date string to Date
+      created_at: trainer.created_at // This is already a Date object from timestamp column
+    };
+  } catch (error) {
+    console.error('Trainer creation failed:', error);
+    throw error;
+  }
+};

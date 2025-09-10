@@ -1,8 +1,21 @@
+import { db } from '../db';
+import { trainersTable } from '../db/schema';
 import { type Trainer } from '../schema';
 
-export async function getTrainers(): Promise<Trainer[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching all gym trainers from the database.
-    // It should return a list of all trainers (active and inactive) with their information.
-    return Promise.resolve([]);
-}
+export const getTrainers = async (): Promise<Trainer[]> => {
+  try {
+    const results = await db.select()
+      .from(trainersTable)
+      .execute();
+
+    // Convert numeric and date fields back to proper types for the schema
+    return results.map(trainer => ({
+      ...trainer,
+      hourly_rate: trainer.hourly_rate ? parseFloat(trainer.hourly_rate) : null,
+      hire_date: new Date(trainer.hire_date)
+    }));
+  } catch (error) {
+    console.error('Failed to fetch trainers:', error);
+    throw error;
+  }
+};

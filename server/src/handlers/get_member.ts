@@ -1,20 +1,30 @@
+import { db } from '../db';
+import { membersTable } from '../db/schema';
 import { type Member } from '../schema';
+import { eq } from 'drizzle-orm';
 
-export async function getMember(id: number): Promise<Member> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is fetching a specific gym member by ID from the database.
-    // It should return the member details or throw an error if not found.
-    return Promise.resolve({
-        id: id,
-        first_name: 'Placeholder',
-        last_name: 'Member',
-        email: 'placeholder@example.com',
-        phone: null,
-        date_of_birth: null,
-        join_date: new Date(),
-        emergency_contact_name: null,
-        emergency_contact_phone: null,
-        medical_conditions: null,
-        created_at: new Date(),
-    } as Member);
-}
+export const getMember = async (id: number): Promise<Member> => {
+  try {
+    const result = await db.select()
+      .from(membersTable)
+      .where(eq(membersTable.id, id))
+      .execute();
+
+    if (result.length === 0) {
+      throw new Error(`Member with id ${id} not found`);
+    }
+
+    const member = result[0];
+    
+    // Convert date strings to Date objects
+    return {
+      ...member,
+      date_of_birth: member.date_of_birth ? new Date(member.date_of_birth) : null,
+      join_date: new Date(member.join_date),
+      created_at: new Date(member.created_at),
+    };
+  } catch (error) {
+    console.error('Failed to get member:', error);
+    throw error;
+  }
+};
